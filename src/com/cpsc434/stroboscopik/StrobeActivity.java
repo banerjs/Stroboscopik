@@ -68,7 +68,7 @@ public class StrobeActivity extends Activity {
     IN_TRANSITION
   };
   
-  //transition states
+  //transition states - these could have been merged into state enum above, but I separated it for readability and easier-to-follow logic
   private static enum Transition {
     SUPERNODE_PENDING_SERVER_VALIDATION, //in case server can't be contacted
     SUBNODE_PENDING_SERVER_VALIDATION,
@@ -234,7 +234,7 @@ public class StrobeActivity extends Activity {
 
   private Runnable evolveIntoSupernode = new Runnable() {
     public void run() {
-      if (!(state == State.IN_TRANSITION && trans == Transition.SEARCHING_FOR_SUPERNODE) ) return;
+      if (!(state == State.IN_TRANSITION && ( trans == Transition.SEARCHING_FOR_SUPERNODE || trans == Transition.SUPERNODE_PENDING_GCM ) ) ) return;
       SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_MULTI_PROCESS);
       String regId = settings.getString(Constants.APP_GCM_REGID_KEY, ""); //if "" then BAD
       if (regId == "") {
@@ -250,7 +250,8 @@ public class StrobeActivity extends Activity {
           "Success! You are now a supernode.",
           "Failure: cannot contact servers");
       PostHTTPTask p = new PostHTTPTask();
-      trans = Transition.SUPERNODE_PENDING_SERVER_VALIDATION;
+      
+      if (trans != Transition.SUPERNODE_PENDING_GCM) trans = Transition.SUPERNODE_PENDING_SERVER_VALIDATION; //don't change transition state on timeouts!
       
       p.execute(params);
     }
@@ -284,6 +285,9 @@ public class StrobeActivity extends Activity {
   
   private Runnable morphIntoSubnode = new Runnable() {
     public void run() {
+      //not sure if conditions below are 100% correct; but note that SEARCHING_FOR_SUPERNODE is a shared transition state in orphan's first step
+      if (!(state == State.IN_TRANSITION && ( trans == Transition.SEARCHING_FOR_SUPERNODE ||
+                                              trans == Transition.SUBNODE_PENDING_GCM ) ) ) return;
       SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_MULTI_PROCESS);
       String regId = settings.getString(Constants.APP_GCM_REGID_KEY, ""); //if "" then bad
       if (regId == "") {
@@ -305,7 +309,9 @@ public class StrobeActivity extends Activity {
           "Failure: cannot contact servers");
   
       PostHTTPTask p = new PostHTTPTask();
-      trans = Transition.SUBNODE_PENDING_SERVER_VALIDATION;
+      
+      if (trans != Transition.SUBNODE_PENDING_GCM) trans = Transition.SUBNODE_PENDING_SERVER_VALIDATION; //don't change transition state on timeouts!
+      
       p.execute(params);
     }
   };
@@ -331,9 +337,15 @@ public class StrobeActivity extends Activity {
       trans = Transition.SUBNODE_PENDING_GCM;
       mHandler.postDelayed(morphIntoSubnode, Constants.APP_GCM_TIMEOUT);
       break;
+    case SUBNODE_PENDING_GCM: //set another timeout
+      mHandler.postDelayed(morphIntoSubnode, Constants.APP_GCM_TIMEOUT);
+      break;
     case SUPERNODE_PENDING_SERVER_VALIDATION:
       startFlashing();
       trans = Transition.SUPERNODE_PENDING_GCM;
+      mHandler.postDelayed(evolveIntoSupernode, Constants.APP_GCM_TIMEOUT);
+      break;
+    case SUPERNODE_PENDING_GCM: //set another timeout
       mHandler.postDelayed(evolveIntoSupernode, Constants.APP_GCM_TIMEOUT);
       break;
     case FAILED_SUBNODE:
@@ -376,15 +388,15 @@ public class StrobeActivity extends Activity {
     private boolean failed = false;
     protected void onPostExecute(String result) {
       if (StrobeActivity.trans == Transition.SUPERNODE_PENDING_SERVER_VALIDATION ||
-          StrobeActivity.trans == Transition.SUBNODE_PENDING_SERVER_VALIDATION) { //don't show this more than once
+          StrobeActivity.trans == Transition.SUBNODE_PENDING_SERVER_VALIDATION) { //don't do this on timeouts
         Toast message = Toast.makeText(getApplicationContext(), result, Toast.LENGTH_SHORT);
         message.show();
       }
-      
       if (failed) {
         //retry
       }
       postResultsCleanup();
+      
     } // end of onPostExecute
 
     @Override
