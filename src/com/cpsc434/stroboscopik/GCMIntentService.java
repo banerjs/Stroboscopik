@@ -34,7 +34,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 	
 	@Override
 	protected void onRegistered(Context context, String registrationId) {
-		SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_PRIVATE);
+		SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_MULTI_PROCESS);
 		String regId = GCMRegistrar.getRegistrationId(getApplicationContext());
 		String oldId = settings.getString(Constants.APP_GCM_REGID_KEY, regId);
 		String cluster = settings.getString(Constants.APP_CLUSTER_KEY, Constants.APP_NO_CLUSTER);
@@ -76,7 +76,7 @@ public class GCMIntentService extends GCMBaseIntentService {
 	
 	@Override
 	protected void onUnregistered(Context context, String errorId) {
-		SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_PRIVATE);
+		SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_MULTI_PROCESS);
 		String oldId = settings.getString(Constants.APP_GCM_REGID_KEY, "");
 
 		//Notify the server and dissociate from the cluster
@@ -107,11 +107,11 @@ public class GCMIntentService extends GCMBaseIntentService {
 	
 	@Override
 	protected void onMessage(Context context, Intent intent) {
-		SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_PRIVATE);
+		SharedPreferences settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_MULTI_PROCESS);
 		SharedPreferences.Editor ed = settings.edit();
 		ed.putString(Constants.APP_CLUSTER_KEY, intent.getStringExtra(Constants.APP_GCM_CLUSTER_KEY));
 		ed.putInt(Constants.APP_FREQUENCY_KEY, Integer.parseInt(intent.getStringExtra(Constants.APP_GCM_FREQUENCY_KEY)));
-		Log.d("onMessage", "new frequency: " + intent.getStringExtra(Constants.APP_GCM_FREQUENCY_KEY));
+		Log.d(TAG, "onMessage: new frequency: " + intent.getStringExtra(Constants.APP_GCM_FREQUENCY_KEY));
 		ed.commit();
 	}
 	

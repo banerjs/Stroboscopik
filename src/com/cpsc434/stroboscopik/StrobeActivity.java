@@ -114,7 +114,7 @@ public class StrobeActivity extends Activity {
     // Check for GCM Registration. Register if not registered
     GCMRegistrar.checkDevice(this);
     GCMRegistrar.checkManifest(this);
-    settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_PRIVATE);
+    settings = getSharedPreferences(Constants.APP_SETTINGS, MODE_MULTI_PROCESS);
     String regId = GCMRegistrar.getRegistrationId(this);
     if (regId == "") {
       GCMRegistrar.register(this, Constants.APP_SENDER_ID);
